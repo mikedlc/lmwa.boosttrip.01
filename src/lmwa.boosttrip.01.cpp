@@ -14,13 +14,14 @@
 
 
 //Device Information
-const char* ProgramID = "ESP_Base";
-const char* SensorType = "ESP_Base";
-const char* mqtt_topic = "dummytopic01";
-const char* mqtt_unit = "Amps";
+const char* ProgramID = "boosttrip01";
+const char* SensorType = "Motor Trip";
+//const char* mqtt_topic = "boosttrip01";
+const char* mqtt_unit = "Binary";
 const char* mqtt_server_init = "192.168.30.121";
 const char* mqtt_user = "mqttuser";
 const char* mqtt_password = "Lafayette123!";
+unsigned long mqtt_frequency = 5000; //mqtt posting frequency in milliseconds (1000 = 1 second)
 
 //OTA Stuff
 #include <ArduinoOTA.h>
@@ -59,10 +60,13 @@ int uptimeMinutes;
 char uptimeTotal[30];
 
 //MQTT Stuff
+#include <bits/stdc++.h>
+#include <string>
+#include <iostream>
 #include <PubSubClient.h>
 void callback(char* topic, byte* payload, unsigned int length);
 void reconnect();
-void sendMQTT(double mqtt_payload);
+void sendMQTT(String mqtt_topic, double mqtt_payload);
 const char* mqtt_server = mqtt_server_init;  //Your network's MQTT server (usually same IP address as Home Assistant server)
 PubSubClient pubsub_client(wifi_client);
 unsigned long lastMsg = 0;
@@ -71,7 +75,18 @@ char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
 // ********* Put your program's custom stuff below here ********** //
+// Binary Sensors
+#define MOTOR01PIN 12
+#define MOTOR02PIN 13
+#define MOTOR03PIN 14
 
+String motor01statustoprint = "Unset";
+String motor02statustoprint = "Unset";
+String motor03statustoprint = "Unset";
+
+int motor01_mqtt = 0;
+int motor02_mqtt = 0;
+int motor03_mqtt = 0;
 
 // ********* Put your program's custom stuff above here ********** //
 
@@ -194,6 +209,10 @@ void setup() {
   pubsub_client.setServer(mqtt_server, 1883);
   pubsub_client.setCallback(callback);
 
+  //Sensor Pin Setup
+  pinMode(MOTOR01PIN, INPUT_PULLUP);
+  pinMode(MOTOR02PIN, INPUT_PULLUP);
+  pinMode(MOTOR03PIN, INPUT_PULLUP);
 
   //Report done booting
   Serial.println("Ready");
@@ -222,6 +241,37 @@ void loop() {
 
   // *************** Put your program below here *********************//
 
+  motor01_mqtt = digitalRead(MOTOR01PIN);
+  motor02_mqtt = digitalRead(MOTOR02PIN);
+  motor03_mqtt = digitalRead(MOTOR03PIN);
+
+  if( motor01_mqtt == HIGH){
+    motor01statustoprint = "Online";
+  }else{
+    motor01statustoprint = "Tripped!";
+  }
+
+  if( motor02_mqtt == HIGH){
+    motor02statustoprint = "Online";
+  }else{
+    motor02statustoprint = "Tripped!";
+  }
+
+  if( motor03_mqtt == HIGH){
+    motor03statustoprint = "Online";
+  }else{
+    motor03statustoprint = "Tripped!";
+  }
+
+  sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
+  sendMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
+  sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
+
+  Serial.print("MOTOR01 Status: "); Serial.println(motor01statustoprint);
+  Serial.print("MOTOR02 Status: "); Serial.println(motor02statustoprint);
+  Serial.print("MOTOR03 Status: "); Serial.println(motor03statustoprint);
+  Serial.println(" ");
+
   // *************** Put your program above here *********************//
 
 
@@ -231,12 +281,15 @@ void loop() {
   display.setCursor(0, 0);
   display.print("Sensor: "); display.println(SensorType);
   display.print("Prog.ID: "); display.println(ProgramID);
+  display.print("Motor 01: "); display.println(motor01statustoprint);
+  display.print("Motor 02: "); display.println(motor02statustoprint);
+  display.print("Motor 03: "); display.println(motor03statustoprint);
   display.print("Hostname: "); display.println(WiFi.getHostname());
   display.print("IP: "); display.println(WiFi.localIP());
   display.print(uptimeTotal);
   display.display();
 
-  sendMQTT(21); //Update MQTT
+  //sendMQTT(21); //Update MQTT
 
   delay(1000);
 }
@@ -276,45 +329,76 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 //connect MQTT if not
 void reconnect() {
+  int mqtt_retries = 0;  
+  
   // Loop until we're reconnected
   while (!pubsub_client.connected()) {
-    Serial.print("Attempting MQTT connection...");
+    Serial.print("Attempting MQTT connection...\n");
     // Create a random pubsub_client ID
-    String clientId = "PUMPSENSOR-";
+    String clientId = ProgramID;
     clientId += String(random(0xffff), HEX);
     // Attempt to connect
     if (pubsub_client.connect(clientId.c_str(), mqtt_user, mqtt_password)) {
-      Serial.println("connected");
+      Serial.println("MQTT Connected.");
     } else {
-      Serial.print("failed, rc=");
-      Serial.print(pubsub_client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      mqtt_retries++;      
+      Serial.print("Failed, pubsub_client.state=");
+      Serial.println(pubsub_client.state());
+      Serial.print("Retries: "); Serial.println(mqtt_retries);
+      Serial.println(" try again in 5 seconds...\n");
+
+      // Wait 3 seconds before retrying
+      delay(3000);
+    }
+    if(mqtt_retries==2){
+      Serial.println("Too many retries. Looping.");
+      return;
     }
   }
 }
 
-void sendMQTT(double mqtt_payload) {
+void sendMQTT(String mqtt_topic, double mqtt_payload) {
+
+  
+  char mqtt_topicchar[mqtt_topic.length()+1];
+
+  for (unsigned int x = 0; x < sizeof(mqtt_topicchar); x++) { 
+      mqtt_topicchar[x] = mqtt_topic[x]; 
+      std::cout << mqtt_topicchar[x]; 
+  }
 
   if (!pubsub_client.connected()) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.print("Sensor: "); display.println(SensorType);
+    display.print("Prog.ID: "); display.println(ProgramID);
+    display.println("\nMQTT Offline!\n");
+    display.print("Hostname: "); display.println(WiFi.getHostname());
+    display.print("IP: "); display.println(WiFi.localIP());
+    display.print(uptimeTotal);
+    display.display();
     reconnect();
   }
 
-  unsigned long now = millis();
-  if (now - lastMsg > 2000) {
-    lastMsg = now;
-    ++value;
+  if(pubsub_client.connected()){
+    unsigned long now = millis();
+    if (now - lastMsg > mqtt_frequency) {
+      lastMsg = now;
+      ++value;
 
-    Serial.println("\nSending alert via MQTT...");
-    Serial.print("Topic: "); Serial.print(mqtt_topic); Serial.print(" Payload: "); Serial.print(mqtt_payload); Serial.print(" Unit: "); Serial.println(mqtt_unit);
+      Serial.println("\nSending alert via MQTT...");
+      Serial.print("Topic: "); Serial.print(mqtt_topic); Serial.print(" Payload: "); Serial.print(mqtt_payload); Serial.print(" Unit: "); Serial.println(mqtt_unit);
 
-    //msg variable contains JSON string to send to MQTT server
-    //snprintf (msg, MSG_BUFFER_SIZE, "\{\"amps\": %4.1f, \"humidity\": %4.1f\}", temperature, humidity);
-    snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %4.2f}", mqtt_unit, mqtt_payload);
+      //msg variable contains JSON string to send to MQTT server
+      //snprintf (msg, MSG_BUFFER_SIZE, "\{\"amps\": %4.1f, \"humidity\": %4.1f\}", temperature, humidity);
+      snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %4.2f}", mqtt_unit, mqtt_payload);
 
-    Serial.print("Publishing message: "); Serial.println(msg);
-    pubsub_client.publish(mqtt_topic, msg);
+      Serial.print("Publishing message: "); Serial.println(msg);
+      pubsub_client.publish(mqtt_topicchar, msg);
+    }
+  }else{
+    Serial.println("MQTT Not Connected... Bail on loop!\n");
   }
 
 }
