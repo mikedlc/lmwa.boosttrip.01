@@ -241,10 +241,12 @@ void loop() {
 
   // *************** Put your program below here *********************//
 
+  //Read motor status
   motor01_mqtt = digitalRead(MOTOR01PIN);
   motor02_mqtt = digitalRead(MOTOR02PIN);
   motor03_mqtt = digitalRead(MOTOR03PIN);
 
+  //Set variables for display and MQTT
   if( motor01_mqtt == HIGH){
     motor01statustoprint = "Online";
   }else{
@@ -263,6 +265,7 @@ void loop() {
     motor03statustoprint = "Tripped!";
   }
 
+  //Update MQTT
   sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
   sendMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
   sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
@@ -288,8 +291,6 @@ void loop() {
   display.print("IP: "); display.println(WiFi.localIP());
   display.print(uptimeTotal);
   display.display();
-
-  //sendMQTT(21); //Update MQTT
 
   delay(1000);
 }
