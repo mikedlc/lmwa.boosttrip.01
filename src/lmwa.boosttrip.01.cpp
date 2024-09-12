@@ -367,6 +367,7 @@ void sendMQTT(String mqtt_topic, double mqtt_payload) {
       mqtt_topicchar[x] = mqtt_topic[x]; 
       std::cout << mqtt_topicchar[x]; 
   }
+  Serial.print("Topic Char: "); Serial.println(mqtt_topicchar);
 
   if (!pubsub_client.connected()) {
     display.clearDisplay();
