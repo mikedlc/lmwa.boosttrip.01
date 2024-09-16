@@ -76,9 +76,9 @@ int value = 0;
 
 // ********* Put your program's custom stuff below here ********** //
 // Binary Sensors
-#define MOTOR01PIN 12
-#define MOTOR02PIN 13
-#define MOTOR03PIN 14
+#define MOTOR01PIN 14
+#define MOTOR02PIN 12
+#define MOTOR03PIN 13
 
 String motor01statustoprint = "Unset";
 String motor02statustoprint = "Unset";
@@ -250,25 +250,25 @@ void loop() {
   if( motor01_mqtt == HIGH){
     motor01statustoprint = "Online";
   }else{
-    motor01statustoprint = "Tripped!";
+    motor01statustoprint = "Offline!";
   }
 
   if( motor02_mqtt == HIGH){
     motor02statustoprint = "Online";
   }else{
-    motor02statustoprint = "Tripped!";
+    motor02statustoprint = "Offline!";
   }
 
   if( motor03_mqtt == HIGH){
     motor03statustoprint = "Online";
   }else{
-    motor03statustoprint = "Tripped!";
+    motor03statustoprint = "Offline!";
   }
 
   //Update MQTT
-  sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
-  sendMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
-  sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
+  //sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
+  //endMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
+  //sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
 
   Serial.print("MOTOR01 Status: "); Serial.println(motor01statustoprint);
   Serial.print("MOTOR02 Status: "); Serial.println(motor02statustoprint);
@@ -346,10 +346,10 @@ void reconnect() {
       Serial.print("Failed, pubsub_client.state=");
       Serial.println(pubsub_client.state());
       Serial.print("Retries: "); Serial.println(mqtt_retries);
-      Serial.println(" try again in 5 seconds...\n");
+      Serial.println(" try again in 1 second...\n");
 
       // Wait 3 seconds before retrying
-      delay(3000);
+      delay(1000);
     }
     if(mqtt_retries==2){
       Serial.println("Too many retries. Looping.");
