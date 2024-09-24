@@ -17,8 +17,8 @@
 const char* ProgramID = "boosttrip01";
 const char* SensorType = "Motor Trip";
 //const char* mqtt_topic = "boosttrip01";
-const char* mqtt_unit = "Binary";
-const char* mqtt_server_init = "192.168.30.121";
+const char* mqtt_unit = "Status";
+const char* mqtt_server_init = "192.168.12.165";
 const char* mqtt_user = "mqttuser";
 const char* mqtt_password = "Lafayette123!";
 unsigned long mqtt_frequency = 5000; //mqtt posting frequency in milliseconds (1000 = 1 second)
@@ -266,9 +266,9 @@ void loop() {
   }
 
   //Update MQTT
-  //sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
-  //endMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
-  //sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
+  sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
+  sendMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
+  sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
 
   Serial.print("MOTOR01 Status: "); Serial.println(motor01statustoprint);
   Serial.print("MOTOR02 Status: "); Serial.println(motor02statustoprint);
