@@ -51,7 +51,7 @@ void printWifiStatus();
 Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 //Timing
-unsigned long currentMillis = 0;
+unsigned long now = 0;
 int uptimeSeconds = 0;
 int uptimeDays;
 int uptimeHours;
@@ -229,8 +229,8 @@ void loop() {
   ArduinoOTA.handle(); // Start listening for OTA Updates
 
   //Calculate Uptime
-  currentMillis = millis();
-  uptimeSeconds=currentMillis/1000;
+  now = millis();
+  uptimeSeconds=now/1000;
   uptimeHours= uptimeSeconds/3600;
   uptimeDays=uptimeHours/24;
   secsRemaining=uptimeSeconds%3600;
@@ -266,10 +266,14 @@ void loop() {
   }
 
   //Update MQTT
-  sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
-  sendMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
-  sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
+  now = millis();
+  if (now - lastMsg > mqtt_frequency) {
+    lastMsg = now;
 
+    sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
+    sendMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
+    sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
+  }
   Serial.print("MOTOR01 Status: "); Serial.println(motor01statustoprint);
   Serial.print("MOTOR02 Status: "); Serial.println(motor02statustoprint);
   Serial.print("MOTOR03 Status: "); Serial.println(motor03statustoprint);
@@ -384,21 +388,19 @@ void sendMQTT(String mqtt_topic, double mqtt_payload) {
   }
 
   if(pubsub_client.connected()){
-    unsigned long now = millis();
-    if (now - lastMsg > mqtt_frequency) {
-      lastMsg = now;
-      ++value;
+    //unsigned long now = millis();
+    ++value;
 
-      Serial.println("\nSending alert via MQTT...");
-      Serial.print("Topic: "); Serial.print(mqtt_topic); Serial.print(" Payload: "); Serial.print(mqtt_payload); Serial.print(" Unit: "); Serial.println(mqtt_unit);
+    Serial.println("\nSending alert via MQTT...");
+    Serial.print("Topic: "); Serial.print(mqtt_topic); Serial.print(" Payload: "); Serial.print(mqtt_payload); Serial.print(" Unit: "); Serial.println(mqtt_unit);
 
-      //msg variable contains JSON string to send to MQTT server
-      //snprintf (msg, MSG_BUFFER_SIZE, "\{\"amps\": %4.1f, \"humidity\": %4.1f\}", temperature, humidity);
-      snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %4.2f}", mqtt_unit, mqtt_payload);
+    //msg variable contains JSON string to send to MQTT server
+    //snprintf (msg, MSG_BUFFER_SIZE, "\{\"amps\": %4.1f, \"humidity\": %4.1f\}", temperature, humidity);
+    snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %4.2f}", mqtt_unit, mqtt_payload);
 
-      Serial.print("Publishing message: "); Serial.println(msg);
-      pubsub_client.publish(mqtt_topicchar, msg);
-    }
+    Serial.print("Publishing message: "); Serial.println(msg);
+    pubsub_client.publish(mqtt_topicchar, msg);
+
   }else{
     Serial.println("MQTT Not Connected... Bail on loop!\n");
   }
