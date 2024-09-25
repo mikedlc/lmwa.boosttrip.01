@@ -66,7 +66,8 @@ char uptimeTotal[30];
 #include <PubSubClient.h>
 void callback(char* topic, byte* payload, unsigned int length);
 void reconnect();
-void sendMQTT(String mqtt_topic, double mqtt_payload);
+void sendMQTT(String mqtt_topic, String mqtt_payload);
+void sendMQTTavailability(String mqtt_topic_availability, String mqtt_payload_availability);
 const char* mqtt_server = mqtt_server_init;  //Your network's MQTT server (usually same IP address as Home Assistant server)
 PubSubClient pubsub_client(wifi_client);
 unsigned long lastMsg = 0;
@@ -87,6 +88,7 @@ String motor03statustoprint = "Unset";
 int motor01_mqtt = 0;
 int motor02_mqtt = 0;
 int motor03_mqtt = 0;
+
 
 // ********* Put your program's custom stuff above here ********** //
 
@@ -214,6 +216,12 @@ void setup() {
   pinMode(MOTOR02PIN, INPUT_PULLUP);
   pinMode(MOTOR03PIN, INPUT_PULLUP);
 
+  //Send MQTT sensor availability signal
+  sendMQTTavailability("boostpump03/availability", "Up");
+  sendMQTT("boostpump01/availability", "Up"); //Update MQTT
+  sendMQTT("boostpump02/availability", "Up"); //Update MQTT
+  sendMQTT("boostpump03/availability", "Up"); //Update MQTT
+
   //Report done booting
   Serial.println("Ready");
   Serial.print("Hostname: ");
@@ -270,9 +278,9 @@ void loop() {
   if (now - lastMsg > mqtt_frequency) {
     lastMsg = now;
 
-    sendMQTT("boostpump01/status", motor01_mqtt); //Update MQTT
-    sendMQTT("boostpump02/status", motor02_mqtt); //Update MQTT
-    sendMQTT("boostpump03/status", motor03_mqtt); //Update MQTT
+    sendMQTT("boostpump01/status", motor01statustoprint); //Update MQTT
+    sendMQTT("boostpump02/status", motor02statustoprint); //Update MQTT
+    sendMQTT("boostpump03/status", motor03statustoprint); //Update MQTT
   }
   Serial.print("MOTOR01 Status: "); Serial.println(motor01statustoprint);
   Serial.print("MOTOR02 Status: "); Serial.println(motor02statustoprint);
@@ -362,7 +370,7 @@ void reconnect() {
   }
 }
 
-void sendMQTT(String mqtt_topic, double mqtt_payload) {
+void sendMQTT(String mqtt_topic, String mqtt_payload) {
 
   
   char mqtt_topicchar[mqtt_topic.length()+1];
@@ -396,7 +404,7 @@ void sendMQTT(String mqtt_topic, double mqtt_payload) {
 
     //msg variable contains JSON string to send to MQTT server
     //snprintf (msg, MSG_BUFFER_SIZE, "\{\"amps\": %4.1f, \"humidity\": %4.1f\}", temperature, humidity);
-    snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %4.2f}", mqtt_unit, mqtt_payload);
+    snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %s}", mqtt_unit, mqtt_payload);
 
     Serial.print("Publishing message: "); Serial.println(msg);
     pubsub_client.publish(mqtt_topicchar, msg);
@@ -405,4 +413,49 @@ void sendMQTT(String mqtt_topic, double mqtt_payload) {
     Serial.println("MQTT Not Connected... Bail on loop!\n");
   }
 
+}
+
+void sendMQTTavailability(String mqtt_topic_availability, String mqtt_payload_availability){
+
+  
+  
+  char mqtt_topicchar[mqtt_topic_availability.length()+1];
+
+  for (unsigned int x = 0; x < sizeof(mqtt_topicchar); x++) { 
+      mqtt_topicchar[x] = mqtt_topic_availability[x]; 
+      std::cout << mqtt_topicchar[x]; 
+  }
+  Serial.print("Topic Char: "); Serial.println(mqtt_topicchar);
+
+  if (!pubsub_client.connected()) {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setCursor(0, 0);
+    display.print("Sensor: "); display.println(SensorType);
+    display.print("Prog.ID: "); display.println(ProgramID);
+    display.println("\nMQTT Offline!\n");
+    display.print("Hostname: "); display.println(WiFi.getHostname());
+    display.print("IP: "); display.println(WiFi.localIP());
+    display.print(uptimeTotal);
+    display.display();
+    reconnect();
+  }
+
+  if(pubsub_client.connected()){
+    //unsigned long now = millis();
+    ++value;
+
+    Serial.println("\nSending alert via MQTT...");
+    Serial.print("Topic: "); Serial.print(mqtt_topic_availability); Serial.print(" Payload: "); Serial.print(mqtt_payload_availability); Serial.print(" Unit: "); Serial.println(mqtt_unit);
+
+    //msg variable contains JSON string to send to MQTT server
+    //snprintf (msg, MSG_BUFFER_SIZE, "\{\"amps\": %4.1f, \"humidity\": %4.1f\}", temperature, humidity);
+    snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %s}", mqtt_unit, mqtt_payload_availability);
+
+    Serial.print("Publishing message: "); Serial.println(msg);
+    pubsub_client.publish(mqtt_topicchar, "Up");
+
+  }else{
+    Serial.println("MQTT Not Connected... Bail on loop!\n");
+  }
 }
