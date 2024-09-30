@@ -407,7 +407,7 @@ void sendMQTT(String mqtt_topic, String mqtt_payload) {
     snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %s}", mqtt_unit, mqtt_payload);
 
     Serial.print("Publishing message: "); Serial.println(msg);
-    pubsub_client.publish(mqtt_topicchar, msg);
+    pubsub_client.publish(mqtt_topicchar, mqtt_payload);
 
   }else{
     Serial.println("MQTT Not Connected... Bail on loop!\n");
@@ -446,13 +446,13 @@ void sendMQTTavailability(String mqtt_topic_availability, String mqtt_payload_av
     ++value;
 
     Serial.println("\nSending alert via MQTT...");
-    Serial.print("Topic: "); Serial.print(mqtt_topic_availability); Serial.print(" Payload: "); Serial.print(mqtt_payload_availability); Serial.print(" Unit: "); Serial.println(mqtt_unit);
+    //Serial.print("Topic: "); Serial.print(mqtt_topic_availability); Serial.print(" Payload: "); Serial.print(mqtt_payload_availability); Serial.print(" Unit: "); Serial.println(mqtt_unit);
 
     //msg variable contains JSON string to send to MQTT server
     //snprintf (msg, MSG_BUFFER_SIZE, "\{\"amps\": %4.1f, \"humidity\": %4.1f\}", temperature, humidity);
-    snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %s}", mqtt_unit, mqtt_payload_availability);
+    //snprintf (msg, MSG_BUFFER_SIZE, "{\"%s\": %s}", mqtt_unit, mqtt_payload_availability);
 
-    Serial.print("Publishing message: "); Serial.println(msg);
+    //Serial.print("Publishing message: "); Serial.println(msg);
     pubsub_client.publish(mqtt_topicchar, "Up");
 
   }else{
